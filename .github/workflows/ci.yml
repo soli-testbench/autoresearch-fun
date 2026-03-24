@@ -2,17 +2,42 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '.github/**'
   push:
     branches-ignore: [main]
-    paths-ignore:
-      - '.github/**'
+
 jobs:
-  build:
+  foundry:
+    name: Foundry Build & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Build contracts
+        working-directory: contracts
+        run: forge build
+      - name: Run tests
+        working-directory: contracts
+        run: forge test -vvv
+
+  cargo:
+    name: Cargo Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo check
+        run: cargo check --workspace
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Validate Dockerfile exists
         run: test -f Dockerfile || (echo "::error::No Dockerfile found" && exit 1)
       - name: Test Docker build
