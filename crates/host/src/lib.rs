@@ -1,0 +1,1 @@
+//! Host crate – stub.

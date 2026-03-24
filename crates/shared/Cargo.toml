@@ -1,0 +1,12 @@
+[package]
+name = "autoresearch-shared"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+alloy-sol-types = { version = "0.8", default-features = false }
+thiserror = { version = "2", default-features = false }

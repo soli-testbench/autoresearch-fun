@@ -1,0 +1,7 @@
+# Dependency governance: submodule updates require security review.
+# Current pin: forge-std v1.15.0 (commit 0844d7e1fc5e60d77b68e469bff60265f236c398)
+# Update procedure: verify new commit matches an official release tag,
+# review changelog for breaking/security changes, and obtain approval before merging.
+[submodule "contracts/lib/forge-std"]
+	path = contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
