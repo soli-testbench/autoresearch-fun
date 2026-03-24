@@ -46,6 +46,9 @@ contract BenchmarkMarket {
     mapping(uint256 => uint256[]) internal _benchmarkThresholds;
     mapping(bytes32 => bool) public usedNonces;
 
+    /// @dev Reentrancy guard state.
+    bool private _locked;
+
     // ------------------------------------------------------------------
     // Events
     // ------------------------------------------------------------------
@@ -139,20 +142,24 @@ contract BenchmarkMarket {
         emit ThresholdPosted(thresholdId, benchmarkId, scoreTarget, deadline, amount);
     }
 
-    /// @notice Submit a verified improvement. Decodes attestation userData, checks PCR0,
-    ///         deduplicates nonces, verifies score improvement, settles crossed thresholds,
-    ///         and pays the agent.
+    /// @notice Submit a verified improvement. Decodes attestation userData, checks PCR0
+    ///         (cryptographically bound in the signed attestation), deduplicates nonces,
+    ///         verifies score improvement, settles crossed thresholds, and pays the agent.
     /// @dev userData ABI layout:
-    ///      (uint256 benchmarkId, uint256 score, bytes32 commitCid, address agent, bytes32 nonce, uint64 elapsedSeconds)
+    ///      (uint256 benchmarkId, uint256 score, bytes32 commitCid, address agent,
+    ///       bytes32 nonce, uint64 elapsedSeconds, bytes32 pcr0)
+    ///      PCR0 is included in the signed userData so it cannot be forged by the caller.
     function submitImprovement(
         bytes calldata attestationTbs,
-        bytes calldata sig,
-        bytes32 pcr0
+        bytes calldata sig
     ) external {
+        require(!_locked, "reentrant call");
+        _locked = true;
+
         bytes memory userData = verifier.verify(attestationTbs, sig);
 
-        (uint256 benchmarkId, uint256 score, , address agent, bytes32 nonce, ) =
-            abi.decode(userData, (uint256, uint256, bytes32, address, bytes32, uint64));
+        (uint256 benchmarkId, uint256 score, , address agent, bytes32 nonce, , bytes32 pcr0) =
+            abi.decode(userData, (uint256, uint256, bytes32, address, bytes32, uint64, bytes32));
 
         Benchmark storage b = _benchmarks[benchmarkId];
         require(b.creator != address(0), "benchmark does not exist");
@@ -182,6 +189,7 @@ contract BenchmarkMarket {
             }
         }
 
+        _locked = false;
         emit ImprovementSubmitted(benchmarkId, score, agent);
     }
 

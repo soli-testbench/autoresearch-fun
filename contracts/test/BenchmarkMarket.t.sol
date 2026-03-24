@@ -38,9 +38,10 @@ contract BenchmarkMarketTest is Test {
         bytes32 cid,
         address agentAddr,
         bytes32 n,
-        uint64 elapsed
+        uint64 elapsed,
+        bytes32 pcr0_
     ) internal pure returns (bytes memory) {
-        return abi.encode(benchmarkId, score, cid, agentAddr, n, elapsed);
+        return abi.encode(benchmarkId, score, cid, agentAddr, n, elapsed, pcr0_);
     }
 
     function _createBenchmark() internal returns (uint256) {
@@ -182,10 +183,10 @@ contract BenchmarkMarketTest is Test {
     function test_submitImprovement_basic() public {
         uint256 bmId = _createBenchmark();
 
-        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
 
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (, uint256 best) = market.getBenchmark(bmId);
         assertEq(best, 500);
@@ -193,47 +194,47 @@ contract BenchmarkMarketTest is Test {
     }
 
     function test_submitImprovement_revert_benchmarkNotExist() public {
-        bytes memory ud = _encodeUserData(999, 500, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(999, 500, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
         vm.expectRevert("benchmark does not exist");
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
     }
 
     function test_submitImprovement_revert_pcr0NotRegistered() public {
         uint256 bmId = _createBenchmark();
-        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60, keccak256("bad-pcr0"));
         verifier.setUserData(ud);
         vm.expectRevert("pcr0 not registered");
-        market.submitImprovement("tbs", "sig", keccak256("bad-pcr0"));
+        market.submitImprovement("tbs", "sig");
     }
 
     function test_submitImprovement_revert_nonceAlreadyUsed() public {
         uint256 bmId = _createBenchmark();
 
-        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // Try again with same nonce but higher score
-        ud = _encodeUserData(bmId, 600, commitCid, agent, nonce1, 60);
+        ud = _encodeUserData(bmId, 600, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
         vm.expectRevert("nonce already used");
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
     }
 
     function test_submitImprovement_revert_scoreNotImprovement() public {
         uint256 bmId = _createBenchmark();
 
         // First improvement
-        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // Second with equal score → not an improvement
-        ud = _encodeUserData(bmId, 500, commitCid, agent, nonce2, 60);
+        ud = _encodeUserData(bmId, 500, commitCid, agent, nonce2, 60, pcr0);
         verifier.setUserData(ud);
         vm.expectRevert("score not an improvement");
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
     }
 
     function test_submitImprovement_settlesThreshold() public {
@@ -242,9 +243,9 @@ contract BenchmarkMarketTest is Test {
         vm.prank(poster);
         market.postThreshold(bmId, 100, block.timestamp + 1 days, 1000);
 
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (,,,,, bool settled,) = market.thresholds(0);
         assertTrue(settled);
@@ -254,9 +255,9 @@ contract BenchmarkMarketTest is Test {
     function test_submitImprovement_noThresholds() public {
         // Improvement with no thresholds posted (empty loop)
         uint256 bmId = _createBenchmark();
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (, uint256 best) = market.getBenchmark(bmId);
         assertEq(best, 200);
@@ -270,17 +271,17 @@ contract BenchmarkMarketTest is Test {
         vm.prank(poster);
         market.postThreshold(bmId, 50, block.timestamp + 1 days, 1000);
 
-        bytes memory ud = _encodeUserData(bmId, 100, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 100, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // Threshold 0 is now settled. Post another threshold and submit new improvement.
         vm.prank(poster);
         market.postThreshold(bmId, 150, block.timestamp + 1 days, 1000);
 
-        ud = _encodeUserData(bmId, 200, commitCid, agent, nonce2, 60);
+        ud = _encodeUserData(bmId, 200, commitCid, agent, nonce2, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // Threshold 0 still settled (not double-paid), threshold 1 settled
         (,,,,, bool s0,) = market.thresholds(0);
@@ -311,9 +312,9 @@ contract BenchmarkMarketTest is Test {
         market.postThreshold(bmId, 80, 5000, 1000);
 
         // Submit improvement that crosses both targets
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // A was refunded → not settled again; B is settled
         (,,,,, bool sA, bool rA) = market.thresholds(0);
@@ -331,9 +332,9 @@ contract BenchmarkMarketTest is Test {
         market.postThreshold(bmId, 500, block.timestamp + 1 days, 1000);
 
         // Score 200 < target 500 → not settled
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (,,,,, bool s,) = market.thresholds(0);
         assertFalse(s);
@@ -344,9 +345,9 @@ contract BenchmarkMarketTest is Test {
         uint256 bmId = _createBenchmark();
 
         // Submit first improvement to set bestScore = 200
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         // Post threshold with target = 100 (already below bestScore)
         _fundAndApprove(poster, 1000);
@@ -354,9 +355,9 @@ contract BenchmarkMarketTest is Test {
         market.postThreshold(bmId, 100, block.timestamp + 1 days, 1000);
 
         // Submit another improvement: score = 300, oldBest = 200, target 100 <= 200 (oldBest) → skip
-        ud = _encodeUserData(bmId, 300, commitCid, agent, nonce2, 60);
+        ud = _encodeUserData(bmId, 300, commitCid, agent, nonce2, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (,,,,, bool s,) = market.thresholds(0);
         assertFalse(s);
@@ -373,9 +374,9 @@ contract BenchmarkMarketTest is Test {
         // Warp past deadline
         vm.warp(2001);
 
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (,,,,, bool s,) = market.thresholds(0);
         assertFalse(s);
@@ -391,10 +392,10 @@ contract BenchmarkMarketTest is Test {
         // Make transfers fail
         usdc.setShouldFailTransfer(true);
 
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
         vm.expectRevert("settlement transfer failed");
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
     }
 
     function test_submitImprovement_multipleThresholdsMixed() public {
@@ -415,9 +416,9 @@ contract BenchmarkMarketTest is Test {
         vm.prank(poster);
         market.postThreshold(bmId, 80, 5000, 1000);
 
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         (,,,,, bool s0,) = market.thresholds(0);
         (,,,,, bool s1,) = market.thresholds(1);
@@ -426,6 +427,22 @@ contract BenchmarkMarketTest is Test {
         assertFalse(s1);
         assertTrue(s2);
         assertEq(usdc.balanceOf(agent), 2000);
+    }
+
+    function test_submitImprovement_revert_forgedPcr0() public {
+        // Negative test: caller cannot forge PCR0. Even though pcr0 is registered,
+        // if the verifier's signed userData contains a *different* pcr0, the check fails.
+        uint256 bmId = _createBenchmark(); // registers `pcr0` in allowlist
+
+        // userData contains an unregistered pcr0Other — simulating a forged attestation
+        // where the enclave measurement doesn't match any registered oracle.
+        bytes memory ud = _encodeUserData(bmId, 500, commitCid, agent, nonce1, 60, pcr0Other);
+        verifier.setUserData(ud);
+
+        // Because pcr0 now comes from inside the signed userData (not a caller parameter),
+        // the contract will decode pcr0Other and reject it.
+        vm.expectRevert("pcr0 not registered");
+        market.submitImprovement("tbs", "sig");
     }
 
     // ------------------------------------------------------------------
@@ -475,9 +492,9 @@ contract BenchmarkMarketTest is Test {
         market.postThreshold(bmId, 50, block.timestamp + 1 days, 1000);
 
         // Settle it
-        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60);
+        bytes memory ud = _encodeUserData(bmId, 200, commitCid, agent, nonce1, 60, pcr0);
         verifier.setUserData(ud);
-        market.submitImprovement("tbs", "sig", pcr0);
+        market.submitImprovement("tbs", "sig");
 
         vm.warp(block.timestamp + 2 days);
         vm.prank(poster);

@@ -12,11 +12,13 @@ use alloy_sol_types::sol;
 // ---------------------------------------------------------------------------
 // ABI types – must match the BenchmarkMarket.sol userData layout exactly:
 //   (uint256 benchmarkId, uint256 score, bytes32 commitCid,
-//    address agent, bytes32 nonce, uint64 elapsedSeconds)
+//    address agent, bytes32 nonce, uint64 elapsedSeconds, bytes32 pcr0)
 // ---------------------------------------------------------------------------
 
 sol! {
     /// Attestation user-data payload decoded by `BenchmarkMarket.submitImprovement`.
+    /// PCR0 is included in the signed attestation to cryptographically bind the enclave
+    /// measurement, preventing caller-controlled PCR0 forgery.
     #[derive(Debug, PartialEq, Eq)]
     struct UserData {
         uint256 benchmarkId;
@@ -25,6 +27,7 @@ sol! {
         address agent;
         bytes32 nonce;
         uint64 elapsedSeconds;
+        bytes32 pcr0;
     }
 }
 
