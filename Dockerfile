@@ -1,4 +1,4 @@
-FROM rust:1.82-bookworm AS rust-check
+FROM rust:1.85-bookworm AS rust-check
 
 RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
 
